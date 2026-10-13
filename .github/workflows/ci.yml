@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: mobility_db
+          POSTGRES_USER: mobility_user
+          POSTGRES_PASSWORD: mobility_pass
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: |
+          pip install -r api/requirements.txt
+          pip install -r pipelines/requirements.txt
+          pip install ruff pytest pytest-asyncio
+
+      - name: Apply DB schema
+        env:
+          PGPASSWORD: mobility_pass
+        run: |
+          psql -h localhost -p 5434 -U mobility_user -d mobility_db -f database/migrations/001_schema.sql
+          psql -h localhost -p 5434 -U mobility_user -d mobility_db -f database/migrations/002_stops.sql
+          psql -h localhost -p 5434 -U mobility_user -d mobility_db -f database/migrations/003_city_geo.sql
+          psql -h localhost -p 5434 -U mobility_user -d mobility_db -f database/migrations/004_austin_od_columns.sql
+
+      - name: Lint
+        run: ruff check api/ pipelines/
+
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql://mobility_user:mobility_pass@localhost:5434/mobility_db
+        run: pytest tests/ -v
+
+  frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install
+        run: npm install
+        working-directory: frontend
+
+      - name: Type check
+        run: npx tsc --noEmit
+        working-directory: frontend
+
+      - name: Build
+        run: npm run build
+        working-directory: frontend

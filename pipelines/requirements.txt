@@ -1,0 +1,16 @@
+pandas==2.2.3
+geopandas==1.0.1
+pydantic>=2.7.1
+requests==2.32.3
+shapely==2.0.6
+pyproj==3.7.1
+pyarrow>=14.0
+osmnx==2.1.1
+gtfs-kit==6.1.1
+rasterio==1.4.4
+numpy>=1.26
+scipy>=1.14
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+asyncpg==0.30.0
+python-dotenv==1.0.1

@@ -1,0 +1,36 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Data — never commit
+pipelines/data/
+spatial/data/
+api/data/osm_cache/
+cache/
+*.graphml
+*.csv
+*.shp
+*.dbf
+*.shx
+*.prj
+*.tif
+*.tiff
+*.geojson
+
+.env
+api/.env
+.env.local
+node_modules/
+.next/
+.DS_Store
+
+# Archives
+*.zip
+
+# Session/tool files
+.claude/
+CLAUDE.md
+test_tile.mvt
