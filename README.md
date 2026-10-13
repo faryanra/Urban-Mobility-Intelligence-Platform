@@ -4,7 +4,9 @@
 
 An interactive geospatial analytics platform comparing transit-first European cities (Stockholm and Amsterdam) with micromobility-dominant American cities (Austin and Chicago) across four real urban datasets.
 
-![Dashboard screenshot](docs/screenshots/dashboard.png)
+| Stockholm (European transit + WLC grid) | Austin (US micromobility O-D flows) |
+|---|---|
+| ![Stockholm view](docs/screenshots/stockholm.webp) | ![Austin view](docs/screenshots/austin.webp) |
 
 ## What It Analyzes
 

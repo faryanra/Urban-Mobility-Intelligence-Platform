@@ -13,8 +13,9 @@ from fastapi.responses import Response
 from api.config import CORS_ORIGINS
 from api.database import close_pool, get_pool
 
-PROCESSED = Path("spatial/data/processed")
-STOPS_DIR = Path("pipelines/data/processed")
+_ROOT = Path(__file__).parent.parent
+PROCESSED = _ROOT / "spatial" / "data" / "processed"
+STOPS_DIR = _ROOT / "pipelines" / "data" / "processed"
 OSM_CACHE_DIR = Path(__file__).parent / "data" / "osm_cache"
 
 OSM_CITIES = {
