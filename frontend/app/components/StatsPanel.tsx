@@ -1,13 +1,6 @@
 "use client";
 import MiniBarChart from "./MiniBarChart";
-
-type CityType = "eu" | "us-austin" | "us-chicago";
-
-function getCityType(city: string): CityType {
-  if (city === "austin") return "us-austin";
-  if (city === "chicago") return "us-chicago";
-  return "eu";
-}
+import type { AccessibilityStats, AustinBreakdown, ChicagoSummary, FlowRow, LoadState } from "@/lib/api";
 
 const VEHICLE_COLORS: Record<string, string> = {
   scooter: "#F59E0B",
@@ -16,28 +9,16 @@ const VEHICLE_COLORS: Record<string, string> = {
   car:     "#F87171",
 };
 
-interface Props {
-  city: string;
-  accessibilityStats?: {
-    accessibility_mean: number;
-    cell_count: number;
-    stop_count: number;
-    high_access_cells: number;
-    low_access_cells: number;
-  } | null;
-  austinBreakdown?: {
-    by_vehicle: { vehicle_type: string; count: number }[];
-    by_month:   { month: number; count: number }[];
-    by_hour:    { hour: number; count: number }[];
-  } | null;
-  austinOD?: Array<Record<string, unknown>> | null;
-  chicagoSummary?: {
-    trip_count: number;
-    avg_duration_min: number;
-    active_stations: number;
-  } | null;
-  wlcThreshold?: number;
-  onWlcChange?: (v: number) => void;
+const pct = (part: number, whole: number) =>
+  whole > 0 ? `${Math.round((part / whole) * 100)}%` : "0%";
+
+function formatPeriod(start: string | null, end: string | null) {
+  if (!start || !end) return "Unknown";
+  const fmt = (d: string, opts: Intl.DateTimeFormatOptions) =>
+    new Date(`${d}T00:00:00Z`).toLocaleDateString("en-GB", { timeZone: "UTC", ...opts });
+  return `${fmt(start, { day: "numeric", month: "short" })} to ${fmt(end, {
+    day: "numeric", month: "short", year: "numeric",
+  })}`;
 }
 
 function StatRow({ label, value }: { label: string; value: string | number }) {
@@ -49,167 +30,184 @@ function StatRow({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-export default function StatsPanel({
-  city,
-  accessibilityStats,
-  austinBreakdown,
-  austinOD,
-  chicagoSummary,
-  wlcThreshold = 0,
-  onWlcChange,
-}: Props) {
-  const cityType = getCityType(city);
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{children}</p>
+  );
+}
 
-  if (cityType === "eu") {
-    if (!accessibilityStats) {
-      return <div className="p-4 text-slate-500 text-sm">Loading accessibility data…</div>;
-    }
-    const mean = (accessibilityStats.accessibility_mean * 100).toFixed(1);
-    return (
-      <div className="p-4 space-y-1">
-        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-          Transit Accessibility
-        </p>
+function Note({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mt-4 p-3 bg-slate-800 rounded-lg">
+      <p className="text-xs text-slate-300 leading-relaxed">{children}</p>
+    </div>
+  );
+}
 
-        {/* WLC threshold filter slider */}
-        <div className="mb-4">
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-xs text-slate-400 uppercase tracking-wide">
-              Show gaps: WLC below
-            </span>
-            <span className="text-xs font-mono text-teal-400">
-              {wlcThreshold === 0 ? "all" : wlcThreshold.toFixed(2)}
-            </span>
-          </div>
-          <input
-            type="range"
-            min={0} max={1} step={0.05}
-            value={wlcThreshold}
-            onChange={e => onWlcChange?.(Number(e.target.value))}
-            className="w-full h-1 accent-teal-500 cursor-pointer"
-          />
-          {wlcThreshold > 0 && (
-            <p className="text-xs text-slate-500 mt-1">Showing underserved areas only</p>
-          )}
+function LegendItem({ swatch, label }: { swatch: string; label: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className={swatch} />
+      <span className="text-xs text-slate-300">{label}</span>
+    </div>
+  );
+}
+
+function EuPanel({ stats, wlcThreshold, onWlcChange }: {
+  stats: AccessibilityStats; wlcThreshold: number; onWlcChange: (v: number) => void;
+}) {
+  return (
+    <div className="p-4 space-y-1">
+      <SectionTitle>Transit accessibility</SectionTitle>
+      <div className="mb-4">
+        <div className="flex justify-between items-center mb-1">
+          <label htmlFor="wlc" className="text-xs text-slate-400 uppercase tracking-wide">
+            Show gaps: WLC below
+          </label>
+          <span className="text-xs font-mono text-teal-400">
+            {wlcThreshold === 0 ? "all" : wlcThreshold.toFixed(2)}
+          </span>
         </div>
-
-        <StatRow label="Mean score" value={`${mean}%`} />
-        <StatRow label="Transit stops" value={accessibilityStats.stop_count.toLocaleString()} />
-        <StatRow label="High-access cells" value={accessibilityStats.high_access_cells.toLocaleString()} />
-        <StatRow label="Low-access cells" value={accessibilityStats.low_access_cells.toLocaleString()} />
-        <StatRow label="Grid cells total" value={accessibilityStats.cell_count.toLocaleString()} />
-        <div className="mt-4 p-3 bg-slate-800 rounded-lg">
-          <p className="text-xs text-slate-300 leading-relaxed">
-            Dense transit coverage — WLC score combines stop proximity (70%)
-            and population density (30%).
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (cityType === "us-austin") {
-    const totalTrips = austinBreakdown?.by_vehicle.reduce((s, v) => s + Number(v.count), 0) || 0;
-    const vehicleData = (austinBreakdown?.by_vehicle || []).map(v => ({
-      label: v.vehicle_type,
-      value: Number(v.count),
-      color: VEHICLE_COLORS[v.vehicle_type] || "#94A3B8",
-    }));
-    const peakHour = austinBreakdown?.by_hour.reduce(
-      (max, h) => Number(h.count) > Number(max.count) ? h : max,
-      { hour: 0, count: 0 }
-    );
-    const hourlyData = (austinBreakdown?.by_hour || []).map(h => ({
-      label: `${h.hour}h`,
-      value: Number(h.count),
-      color: Number(h.count) === Number(peakHour?.count) ? "#F59E0B" : "#4ECDC4",
-    }));
-
-    return (
-      <div className="p-4">
-        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-          Micromobility Trips
-        </p>
-        <StatRow label="Total trips" value={totalTrips.toLocaleString()} />
-        <StatRow label="Period" value="Oct 2021" />
-        {peakHour && <StatRow label="Peak hour" value={`${peakHour.hour}:00`} />}
-        {austinOD && <StatRow label="O-D district flows" value={austinOD.length} />}
-        <MiniBarChart data={vehicleData} title="By Vehicle Type" />
-        <MiniBarChart
-          data={hourlyData.filter((_, i) => i % 2 === 0)}
-          title="Trips by Hour"
-          formatValue={v => v > 1000 ? `${(v / 1000).toFixed(1)}k` : String(v)}
+        <input
+          id="wlc"
+          type="range"
+          min={0} max={1} step={0.05}
+          value={wlcThreshold}
+          onChange={e => onWlcChange(Number(e.target.value))}
+          className="w-full h-1 accent-teal-500 cursor-pointer"
         />
-        <div className="mt-3">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-            Map Layers
-          </p>
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-sm border border-amber-400 opacity-70" />
-              <span className="text-xs text-slate-300">Council districts</span>
-            </div>
-            {austinOD && austinOD.length > 0 && (
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-0.5 bg-amber-400 rounded" />
-                <span className="text-xs text-slate-300">O-D flow arcs</span>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="mt-4 p-3 bg-slate-800 rounded-lg">
-          <p className="text-xs text-slate-300 leading-relaxed">
-            Arc lines show inter-district O-D flows. District 9 (downtown)
-            dominates both origin and destination traffic.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (cityType === "us-chicago") {
-    return (
-      <div className="p-4">
-        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-          Divvy Bike-Share · 2013
-        </p>
-        {chicagoSummary ? (
-          <>
-            <StatRow label="Total trips" value={chicagoSummary.trip_count.toLocaleString()} />
-            <StatRow label="Avg duration" value={`${chicagoSummary.avg_duration_min} min`} />
-            <StatRow label="Active stations" value={chicagoSummary.active_stations.toLocaleString()} />
-          </>
-        ) : (
-          <div className="text-slate-500 text-sm">Loading…</div>
+        {wlcThreshold > 0 && (
+          <p className="text-xs text-slate-500 mt-1">Showing underserved cells only</p>
         )}
-        <div className="mt-4 p-3 bg-slate-800 rounded-lg">
-          <p className="text-xs text-slate-300 leading-relaxed">
-            Arc lines show top 30 station-to-station flows. Divvy stations
-            cluster near CTA L train stops — classic first/last-mile pattern.
-          </p>
+      </div>
+      <StatRow label="Mean WLC score" value={stats.accessibility_mean.toFixed(2)} />
+      <StatRow label="Transit stops" value={stats.stop_count.toLocaleString()} />
+      <StatRow label="Cells scoring 0.7 or more" value={stats.high_access_cells.toLocaleString()} />
+      <StatRow label="Cells scoring below 0.3" value={stats.low_access_cells.toLocaleString()} />
+      <StatRow label="Grid cells (500 m)" value={stats.cell_count.toLocaleString()} />
+      <Note>
+        {pct(stats.low_access_cells, stats.cell_count)} of cells score below 0.3, and{" "}
+        {pct(stats.cells_beyond_500m, stats.cell_count)} have their centre more than 500 m
+        (straight line) from the nearest stop. Score = 0.7 x transit proximity + 0.3 x
+        population density.
+      </Note>
+    </div>
+  );
+}
+
+function busiestDistrict(od: FlowRow[]) {
+  const totals = new Map<string, number>();
+  let all = 0;
+  for (const f of od) {
+    all += Number(f.flow_count);
+    for (const d of new Set([f.from_district, f.to_district])) {
+      if (d) totals.set(d, (totals.get(d) ?? 0) + Number(f.flow_count));
+    }
+  }
+  const [district, trips] = [...totals.entries()].sort((a, b) => b[1] - a[1])[0] ?? ["", 0];
+  return { district, share: pct(trips, all) };
+}
+
+function AustinPanel({ breakdown, od }: { breakdown: AustinBreakdown; od: FlowRow[] }) {
+  const totalTrips = breakdown.by_vehicle.reduce((s, v) => s + Number(v.count), 0);
+  const vehicleData = breakdown.by_vehicle.map(v => ({
+    label: v.vehicle_type,
+    value: Number(v.count),
+    color: VEHICLE_COLORS[v.vehicle_type] ?? "#94A3B8",
+  }));
+  const counts = Array.from({ length: 24 }, (_, h) =>
+    Number(breakdown.by_hour.find(r => r.hour === h)?.count ?? 0));
+  const peakHour = counts.indexOf(Math.max(...counts));
+  const bins = Array.from({ length: 12 }, (_, i) => ({
+    label: `${String(i * 2).padStart(2, "0")}-${String(i * 2 + 1).padStart(2, "0")}h`,
+    value: counts[i * 2] + counts[i * 2 + 1],
+    color: Math.floor(peakHour / 2) === i ? "#F59E0B" : "#4ECDC4",
+  }));
+  const hub = busiestDistrict(od);
+
+  return (
+    <div className="p-4">
+      <SectionTitle>Micromobility trips</SectionTitle>
+      <StatRow label="Total trips" value={totalTrips.toLocaleString()} />
+      <StatRow label="Period" value={formatPeriod(breakdown.period.start, breakdown.period.end)} />
+      <StatRow label="Peak hour (local)" value={`${String(peakHour).padStart(2, "0")}:00`} />
+      <StatRow label="District flows shown" value={od.length} />
+      <MiniBarChart data={vehicleData} title="By vehicle type" />
+      <MiniBarChart
+        data={bins}
+        title="Trips by hour (Austin time)"
+        formatValue={v => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v))}
+      />
+      <div className="mt-3">
+        <SectionTitle>Map layers</SectionTitle>
+        <div className="space-y-1.5">
+          <LegendItem swatch="w-3 h-3 rounded-sm border border-amber-400 opacity-70" label="Council districts" />
+          <LegendItem swatch="w-3 h-0.5 bg-amber-400 rounded" label="District to district flows" />
         </div>
-        <div className="mt-3">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-            Map Layers
-          </p>
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-0.5 bg-amber-400 rounded" />
-              <span className="text-xs text-slate-300">O-D flow arcs</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-red-400" />
-              <span className="text-xs text-slate-300">CTA L train lines</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-teal-400" />
-              <span className="text-xs text-slate-300">Divvy stations</span>
-            </div>
-          </div>
+      </div>
+      <Note>
+        {hub.district && <>District {hub.district} is an endpoint of {hub.share} of trips in the
+          30 busiest inter-district flows. </>}
+        The public dataset reports trip ends by council district, so arcs connect district
+        centroids rather than exact coordinates.
+      </Note>
+    </div>
+  );
+}
+
+function ChicagoPanel({ summary }: { summary: ChicagoSummary }) {
+  return (
+    <div className="p-4">
+      <SectionTitle>Divvy bike share</SectionTitle>
+      <StatRow label="Trips" value={summary.trip_count.toLocaleString()} />
+      <StatRow label="Period" value={formatPeriod(summary.period_start, summary.period_end)} />
+      <StatRow label="Median duration" value={`${summary.median_duration_min} min`} />
+      <StatRow label="Stations used" value={summary.active_stations.toLocaleString()} />
+      <div className="mt-3">
+        <SectionTitle>Map layers</SectionTitle>
+        <div className="space-y-1.5">
+          <LegendItem swatch="w-3 h-0.5 bg-amber-400 rounded" label="Busiest station flows" />
+          <LegendItem swatch="w-3 h-0.5 bg-red-400 rounded" label="CTA L train lines" />
+          <LegendItem swatch="w-2 h-2 rounded-full bg-teal-400" label="Divvy stations" />
         </div>
+      </div>
+      <Note>
+        Arcs show the 30 busiest station-to-station flows in the first weeks of the Divvy
+        system (summer 2013), drawn against the CTA L network.
+      </Note>
+    </div>
+  );
+}
+
+interface Props {
+  state: LoadState;
+  wlcThreshold: number;
+  onWlcChange: (v: number) => void;
+  onRetry: () => void;
+}
+
+export default function StatsPanel({ state, wlcThreshold, onWlcChange, onRetry }: Props) {
+  if (state.status === "loading") {
+    return <div className="p-4 text-slate-500 text-sm">Loading {state.city} data...</div>;
+  }
+  if (state.status === "error") {
+    return (
+      <div className="p-4 space-y-3" role="alert">
+        <p className="text-sm text-red-300">Could not load {state.city} data.</p>
+        <p className="text-xs text-slate-400">{state.error}</p>
+        <button
+          onClick={onRetry}
+          className="text-xs px-3 py-1.5 rounded bg-slate-800 text-slate-200 hover:bg-slate-700"
+        >
+          Retry
+        </button>
       </div>
     );
   }
-
-  return null;
+  const { data } = state;
+  if (data.kind === "eu") {
+    return <EuPanel stats={data.stats} wlcThreshold={wlcThreshold} onWlcChange={onWlcChange} />;
+  }
+  if (data.kind === "austin") return <AustinPanel breakdown={data.breakdown} od={data.od} />;
+  return <ChicagoPanel summary={data.summary} />;
 }

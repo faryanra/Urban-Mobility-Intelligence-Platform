@@ -61,7 +61,7 @@ body {
 /* ── WLC color legend ── */
 .map-legend {
   position: absolute;
-  bottom: 32px;
+  bottom: 40px;
   right: 12px;
   background: rgba(15, 23, 42, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -92,3 +92,9 @@ body {
   margin-bottom: 6px;
 }
 .legend-note { font-size: 10px; color: #64748b; }
+
+@media (max-width: 767px) {
+  .map-legend { width: 150px; bottom: 36px; right: 8px; padding: 8px 10px; }
+  .legend-note { display: none; }
+  .legend-title { font-size: 11px; margin-bottom: 6px; }
+}
