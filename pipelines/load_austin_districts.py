@@ -6,6 +6,8 @@ from pathlib import Path
 import asyncpg
 from shapely.geometry import MultiPolygon, Polygon, shape
 
+from pipelines.db import DATABASE_URL
+
 GEOJSON = Path("pipelines/data/raw/austin_council_districts.geojson")
 
 
@@ -18,10 +20,7 @@ def to_multipolygon(geom):
 
 
 async def main():
-    conn = await asyncpg.connect(
-        host='127.0.0.1', port=5434, database='mobility_db',
-        user='mobility_user', password='mobility_pass',
-    )
+    conn = await asyncpg.connect(DATABASE_URL)
     data = json.loads(GEOJSON.read_text())
 
     await conn.execute("TRUNCATE austin_districts RESTART IDENTITY CASCADE")

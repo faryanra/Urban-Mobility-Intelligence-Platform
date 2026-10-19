@@ -7,8 +7,8 @@ import requests
 Path("pipelines/data/raw").mkdir(parents=True, exist_ok=True)
 
 downloads = {
-    "chicago_wards.geojson": "https://data.cityofchicago.org/resource/p293-wvbd.geojson?$limit=100",
-    "chicago_cta_lines.geojson": "https://data.cityofchicago.org/resource/xbyr-jnvx.geojson?$limit=50",
+    "chicago_wards.geojson": "https://data.cityofchicago.org/resource/p293-wvbd.geojson?$limit=1000",
+    "chicago_cta_lines.geojson": "https://data.cityofchicago.org/resource/xbyr-jnvx.geojson?$limit=1000",
 }
 
 for filename, url in downloads.items():

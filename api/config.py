@@ -1,30 +1,25 @@
-"""Database and app configuration."""
+"""Database and app configuration, read from the environment."""
 
 import os
-import urllib.parse
+from pathlib import Path
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
-_db_url = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://mobility_user:mobility_pass@127.0.0.1:5434/mobility_db",
+)
 
-if _db_url:
-    _p = urllib.parse.urlparse(_db_url)
-    DB_HOST = _p.hostname or "127.0.0.1"
-    DB_PORT = _p.port or 5432
-    DB_NAME = (_p.path or "").lstrip("/")
-    DB_USER = _p.username or "mobility_user"
-    DB_PASS = _p.password or ""
-    DATABASE_URL = _db_url
-else:
-    DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
-    DB_PORT = int(os.getenv("DB_PORT", "5434"))
-    DB_NAME = os.getenv("DB_NAME", "mobility_db")
-    DB_USER = os.getenv("DB_USER", "mobility_user")
-    DB_PASS = os.getenv("DB_PASS", "mobility_pass")
-    DATABASE_URL = (
-        f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-    )
+CORS_ORIGINS = [
+    o.strip()
+    for o in os.getenv(
+        "CORS_ORIGINS", "http://localhost:3000,http://localhost:3002"
+    ).split(",")
+    if o.strip()
+]
 
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
+OSM_CACHE_DIR = Path(
+    os.getenv("OSM_CACHE_DIR", Path(__file__).parent / "data" / "osm_cache")
+)

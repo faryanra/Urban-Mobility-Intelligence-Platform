@@ -5,7 +5,7 @@ from pathlib import Path
 import geopandas as gpd
 import psycopg2
 
-DSN = "host=127.0.0.1 port=5434 dbname=mobility_db user=mobility_user password=mobility_pass"
+from pipelines.db import DATABASE_URL
 
 FILES = {
     "stockholm": Path("pipelines/data/processed/stockholm_stops.parquet"),
@@ -14,7 +14,7 @@ FILES = {
 
 
 def load_stops() -> None:
-    conn = psycopg2.connect(DSN)
+    conn = psycopg2.connect(DATABASE_URL)
     cur = conn.cursor()
 
     for city, path in FILES.items():

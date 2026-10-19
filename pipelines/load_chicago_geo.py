@@ -6,6 +6,8 @@ from pathlib import Path
 import asyncpg
 from shapely.geometry import LineString, MultiLineString, MultiPolygon, Polygon, shape
 
+from pipelines.db import DATABASE_URL
+
 
 def to_multipolygon(geom):
     if isinstance(geom, MultiPolygon):
@@ -62,10 +64,7 @@ async def load_metro(conn):
 
 
 async def main():
-    conn = await asyncpg.connect(
-        host='127.0.0.1', port=5434, database='mobility_db',
-        user='mobility_user', password='mobility_pass',
-    )
+    conn = await asyncpg.connect(DATABASE_URL)
     await load_wards(conn)
     await load_metro(conn)
     await conn.close()

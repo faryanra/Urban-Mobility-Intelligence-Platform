@@ -1,4 +1,4 @@
-"""Fetch Divvy bike trip data for June 2013 from Chicago open data portal."""
+"""Fetch a 50,000-trip Divvy sample (summer 2013) from the Chicago open data portal."""
 from pathlib import Path
 
 import pandas as pd

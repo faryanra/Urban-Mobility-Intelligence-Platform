@@ -1,5 +1,7 @@
 """Async database connection pool."""
 
+import json
+
 import asyncpg
 
 from api.config import DATABASE_URL
@@ -7,10 +9,18 @@ from api.config import DATABASE_URL
 _pool: asyncpg.Pool | None = None
 
 
+async def _init_connection(conn: asyncpg.Connection) -> None:
+    await conn.set_type_codec(
+        "json", encoder=json.dumps, decoder=json.loads, schema="pg_catalog"
+    )
+
+
 async def get_pool() -> asyncpg.Pool:
     global _pool
     if _pool is None:
-        _pool = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=10)
+        _pool = await asyncpg.create_pool(
+            DATABASE_URL, min_size=1, max_size=10, init=_init_connection
+        )
     return _pool
 
 

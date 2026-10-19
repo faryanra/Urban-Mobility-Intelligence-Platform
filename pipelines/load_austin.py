@@ -5,8 +5,9 @@ from pathlib import Path
 import pandas as pd
 import psycopg2
 
+from pipelines.db import DATABASE_URL
+
 PARQUET = Path("pipelines/data/processed/austin_clean.parquet")
-DSN = "host=127.0.0.1 port=5434 dbname=mobility_db user=mobility_user password=mobility_pass"
 
 
 def load() -> None:
@@ -18,8 +19,9 @@ def load() -> None:
     lon_col = next((c for c in df.columns if "lon" in c.lower()), None)
     print(f"  coordinate columns: lat={lat_col}, lon={lon_col}")
 
-    conn = psycopg2.connect(DSN)
+    conn = psycopg2.connect(DATABASE_URL)
     cur = conn.cursor()
+    cur.execute("DELETE FROM mobility_trips WHERE city = 'austin'")
 
     inserted = 0
     skipped = 0

@@ -54,15 +54,6 @@ def parse_stops(zip_path: Path, city: str) -> gpd.GeoDataFrame:
     return gdf[["stop_id", "stop_name", "city", "geometry"]]
 
 
-def parse_routes(zip_path: Path, city: str) -> pd.DataFrame:
-    """Extract routes.txt for route type stats."""
-    with zipfile.ZipFile(zip_path, "r") as z, z.open("routes.txt") as f:
-        routes = pd.read_csv(f)
-    routes.columns = [c.strip().lower() for c in routes.columns]
-    routes["city"] = city
-    return routes
-
-
 if __name__ == "__main__":
     sl_zip = Path("pipelines/data/raw/sl_gtfs.zip")
     gvb_zip = Path("pipelines/data/raw/gvb_gtfs.zip")

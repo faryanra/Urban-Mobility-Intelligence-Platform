@@ -1,15 +1,16 @@
-"""Re-ingest Austin trips: fetch district info from Socrata, derive coords from centroids."""
+"""Attach council districts to loaded Austin trips and place trip ends at district centroids.
+
+The public dataset reports where trips start and end by council district, not by coordinate.
+"""
 
 import asyncio
 
 import asyncpg
 import httpx
 
+from pipelines.db import DATABASE_URL
+
 SOCRATA = "https://data.austintexas.gov/resource/7d8e-dm7r.json"
-DB_ARGS = {
-    "host": "127.0.0.1", "port": 5434, "database": "mobility_db",
-    "user": "mobility_user", "password": "mobility_pass",
-}
 
 # Filter to the same date range our DB trips came from
 DATE_FILTER = (
@@ -49,7 +50,7 @@ async def main():
         records = await fetch_socrata(client)
     print(f"Total Socrata rows: {len(records)}")
 
-    conn = await asyncpg.connect(**DB_ARGS)
+    conn = await asyncpg.connect(DATABASE_URL)
     try:
         centroid_rows = await conn.fetch("""
             SELECT district_id,

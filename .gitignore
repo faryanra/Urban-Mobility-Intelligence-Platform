@@ -30,7 +30,5 @@ node_modules/
 # Archives
 *.zip
 
-# Session/tool files
-.claude/
-CLAUDE.md
+# Local scratch
 test_tile.mvt

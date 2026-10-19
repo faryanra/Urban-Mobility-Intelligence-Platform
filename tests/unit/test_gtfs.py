@@ -1,9 +1,11 @@
 """Tests for GTFS parsing logic."""
 
-import zipfile
 import io
-import pytest
+import zipfile
 from pathlib import Path
+
+import pytest
+
 from pipelines.parse_gtfs import parse_stops
 
 
